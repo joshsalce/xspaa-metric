@@ -15,29 +15,7 @@ library(magick)
 
 # Read in Data =========================================================================================================
 
-points_data <- read.csv("../Data/points_data.csv") %>%
-  filter(rallyid >= 169) %>%
-  mutate(
-    returner = ifelse(rallyid == 196, "Nadal", returner),
-    start_score = ifelse(!is.na(lag(score, 1)), lag(score, 1), "6:3 6:2 3:2, 0:0"),
-    rally_select_name = paste("Rally ", rallyid, ": ", start_score, sep = "")
-  ) %>%
-  rename(end_score = score)
-
-event_predictions <- read.csv("../Data/event_predictions.csv") 
-
-rally_results <- points_data %>%
-  select(rallyid, server, returner, winner, ServerWinsPoint, end_score)
-
-event_predictions %>%
-  group_by(rallyid) %>%
-  summarise(strokes = max(strokeid)) %>%
-  inner_join(event_predictions %>%
-         select(rallyid, strokeid, prob), by = c("rallyid", "strokes" = "strokeid")) %>%
-  inner_join(rally_results) %>%
-  mutate(xSPW = ServerWinsPoint - prob) %>%
-  select(-prob, -ServerWinsPoint)
-
+event_predictions_data <- read.csv("event_predictions_app.csv")
 
 # Build UI and Server ==================================================================================================
 # UI
@@ -109,7 +87,7 @@ server <- function(input, output) {
     
     # Render the GIF and text in the UI
     output$gif_image <- renderImage({
-      list(src = gif_path, contentType = "image/gif", height='250px', width='500px')
+      list(src = gif_path, contentType = "image/gif", height='400px', width='800px')
     }, deleteFile = FALSE)
     
     # output$selected_text <- renderText({
