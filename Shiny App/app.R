@@ -25,17 +25,18 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       selectInput("selected_rallyid", "Select a Rally:", 
-                  choices = c("", unique(points_data$rally_select_name)),
+                  choices = c("", unique(event_predictions_data$rally_select_name)),
                   selected = NULL,
                   multiple = FALSE),
       width = 5
     ),
     mainPanel(
-      imageOutput("gif_image"),
-      verbatimTextOutput("selected_text")
+      fluidRow(
+        column(11, imageOutput("gif_image")),
+        #column(1, textOutput("selected_text"))
+        column(1, tableOutput("output_table"))
+      )
     )
-    
-
   )
 )
 
@@ -46,57 +47,55 @@ server <- function(input, output) {
   rally_id <- reactive({
     req(input$selected_rallyid)
 
-    filter(points_data, rally_select_name %in% input$selected_rallyid)$rallyid
+    filter(event_predictions_data, rally_select_name %in% input$selected_rallyid)$rallyid
   })
 
-  rally_server <- reactive({
-    req(input$selected_rallyid)
+  # Filtered data based on selection
+  rally_data <- reactive({
+    req(rally_id())
 
-    filter(points_data, rally_select_name %in% input$selected_rallyid)$server
+    event_predictions_data %>%
+      filter(rallyid == rally_id()) %>%
+      select(-rallyid, -rally_select_name) %>%
+      mutate(xSPW = as.character(round(xSPW, 2))) %>%
+      rename(
+        Score = start_score,
+        Server = server,
+        Returner = returner,
+        Winner = winner,
+        Reason = reason
+      ) %>% 
+      pivot_longer(
+        everything(), 
+        names_to = "Name", 
+        values_to = "Value"
+      )
   })
 
-  rally_returner <- reactive({
-    req(input$selected_rallyid)
-
-    filter(points_data, rally_select_name %in% input$selected_rallyid)$returner
-  })
-
-  rally_winner <- reactive({
-    req(input$selected_rallyid)
-
-    filter(points_data, rally_select_name %in% input$selected_rallyid)$winner
-  })
-
-  rally_reason <- reactive({
-    req(input$selected_rallyid)
-
-    filter(points_data, rally_select_name %in% input$selected_rallyid)$reason
-  })
-
-  
   observeEvent(rally_id(), {
     
     print("Displaying Rally Info...")
     # Paths to the GIF and text files based on selection
     gif_path <- paste0("www/animation_", rally_id(), ".gif")
-    #text_path <- paste0("www/", selected_option, ".txt")
-    
-    # Read the GIF and text files
-    #gif <- image_read(gif_path)
-    #selected_text <- readLines(text_path, warn = FALSE)
     
     # Render the GIF and text in the UI
     output$gif_image <- renderImage({
-      list(src = gif_path, contentType = "image/gif", height='400px', width='800px')
+      list(src = gif_path, contentType = "image/gif", height='400px', width='800px', align = "left")
     }, deleteFile = FALSE)
     
-    # output$selected_text <- renderText({
-    #   paste(selected_text, collapse = "\n")
-    # })
+    output$output_table <- renderTable({
+      req(rally_data())
+
+      rally_data() 
+      
+    }, options = list(
+      pageLength = 10,
+      autoWidth = FALSE
+    ))
   })
   
-  
 }
+
 
 # Run the application 
 shinyApp(ui = ui, server = server)
